@@ -1,37 +1,60 @@
-name: Create a build pipeline
+name: Create CI/CD pipeline
 
 on:
     workflow_dispatch:
     push:
         branches:
           - main
-
 env:
     MONGO_URI: 'mongodb+srv://supercluster.d83jj.mongodb.net/superData'
     MONGO_USERNAME: ${{ vars.MONGO_USERNAME }}
     MONGO_PASSWORD: ${{ secrets.MONGO_PASSWORD }}
+    
 jobs:
     node-build:
-
         strategy:
-          matrix:
-            node-version: [18,19,20]
-            os-runner: [ubuntu-latest,windows-latest,macos-latest]
-            exclude:
-              - os-runner: [macos-latest]
+            matrix:
+              nodejs-version: [18,19,20]
+              os-runner: [ubuntu-latest,macos-latest,windows-latest]
         runs-on: ${{ matrix.os-runner }}
-        steps:
-          - name: Checkout repo
-            uses: actions/checkout@v3
 
-          - name: Setup node
-            uses: actions/setup-node@v3
+        steps:
+          - name: Checkout to repository
+            uses: actions/checkout@v4
+
+          - name: Setup nodejs version
+            uses: actions/setup-node@v4
             with:
-                node-version: ${{ matrix.node-version }}
+                node-version: ${{ matrix.nodejs-version }}
           
-          - name: Install node version
+          - name: Install  dependencies
             run: npm ci
 
-          - name: Testing node suite
+          - name: Testing NPM Suite
             run: npm test
             continue-on-error: true
+
+    docker:
+        name: Docker build and push
+        needs: node-build
+        runs-on: ubuntu-latest
+        steps:
+          - name: Checkout to repository
+            uses: actions/checkout@v4
+
+          - name: Login to Dockerhub
+            uses: docker/login-action@v3
+            with:
+               username: ${{ secrets.DOCKERUSERNAME }}
+               password: ${{ secrets.DOCKERPASSWORD }}
+
+          - name: Setup BUILDX
+            uses: docker/setup-buildx-action@v3
+
+          - name: Docker push action
+            uses: docker/build-push-action@v6
+            with:
+                context: .
+                push: true
+                tags: |
+                  kloude/solarsystem:${{ github.sha}}
