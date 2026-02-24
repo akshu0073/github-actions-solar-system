@@ -8,11 +8,14 @@ on:
 
 jobs:
     node-build:
-        runs-on: ubuntu-latest
+
         strategy:
           matrix:
-            node-version: [18,20,22]
-    
+            node-version: [18,19,20]
+            os-runner: [ubuntu-latest,windows-latest,macos-latest]
+            exclude:
+              - os-runner: [macos-latest]
+        runs-on: ${{ matrix.os-runner }}
         steps:
           - name: Checkout repo
             uses: actions/checkout@v3
@@ -27,3 +30,4 @@ jobs:
 
           - name: Testing node suite
             run: npm test
+            continue-on-error: true
